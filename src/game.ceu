@@ -5,9 +5,6 @@
 #define WINDOW_W 800
 #define WINDOW_H 600
 
-#define WORLD_W 25
-#define WORLD_H 19
-
 #define PI 3.1415926535897932
 
 native/pre do
@@ -18,10 +15,19 @@ end
 native _ASPath, _PathNode;
 
 native/nohold 
+    _SDL_GetKeyboardState,
     _ASPathCreate,
     _ASPathGetCount,
     _ASPathGetNode,
-    _loadWorld;
+    _loadWorld,
+    _sign,
+    _clamp;
+
+native/const
+    _SDL_SCANCODE_LEFT,
+    _SDL_SCANCODE_UP,
+    _SDL_SCANCODE_RIGHT,
+    _SDL_SCANCODE_DOWN;
 
 var&? SDL_Init sdl =
     spawn SDL_Init("AStar Tests", WINDOW_W, WINDOW_H, SDL_Color(0xFF,0xFF,0xFF,0xFF));
@@ -29,10 +35,15 @@ var&? SDL_Init sdl =
 watching sdl do
     _loadWorld("./res/level00.map");
 
-    var int startX = 0;
-    var int startY = 0;
-    var int endX = 12;
-    var int endY = 12;
+    native/const
+        _world, _world_w, _world_h;
+
+    var int cameraX = 0;
+    var int cameraY = 0;
+    var int startX = 1;
+    var int startY = 1;
+    var int endX = 1;
+    var int endY = 1;
 
     #include "pathfinder.ceu"
     var& Pathfinder pf = spawn Pathfinder(startX,startY,endX,endY);
@@ -40,36 +51,74 @@ watching sdl do
     #include "block.ceu"
     pool[] Block blocks;
 
+    #include "chaser.ceu"
+    event void respawn_chaser;
+
+    var int maxCameraX = _world_w * BLOCK_SIZE - WINDOW_W;
+    var int maxCameraY = _world_h * BLOCK_SIZE - WINDOW_H;
+
     var int i;
     var int j;
-    loop i in [0 -> WORLD_H[ do
-        loop j in [0 -> WORLD_W[ do
-            if ({world[@j + (@i * WORLD_W)]} == 1) then
+    _printf("%d x %d\n", _world_w, _world_h);
+    loop i in [0 -> _world_h[ do
+        loop j in [0 -> _world_w[ do
+            if (_world[j + (i * _world_w)] == 1) then
                 spawn Block(j*BLOCK_SIZE, i*BLOCK_SIZE) in blocks;
+                
             end
             // { printf("%d ", world[@j + (@i * WORLD_W)]); }
         end
     end
 
     par do
+        loop do
+            spawn Chaser(startX * BLOCK_SIZE + (BLOCK_SIZE/2), startY * BLOCK_SIZE + (BLOCK_SIZE/2));
+            await respawn_chaser;
+        end
+    with 
         loop do 
             par/or do 
                 var _SDL_MouseMotionEvent&& m;
                 m = await SDL_MOUSEMOTION;
-                endX = m:x/32; endY = m:y/32;
+                endX = (cameraX + m:x)/32; endY = (cameraY + m:y)/32;
             with
                 var _SDL_MouseButtonEvent&& m;
                 m = await SDL_MOUSEBUTTONDOWN until (m:button==_SDL_BUTTON_LEFT);
-                startX = m:x/32; startY = m:y/32;
+                startX = (cameraX + m:x)/32; startY = (cameraY + m:y)/32;       
+                emit respawn_chaser;       
             end
             emit pf.do_retarget(startX,startY,endX,endY);
+        end
+    with
+        every SDL_DT do
+            {const u8 *st = SDL_GetKeyboardState(0);}
+
+            if ( {st[SDL_SCANCODE_RIGHT]} != 0) then
+                cameraX = _clamp(cameraX + 10, 0, maxCameraX);
+            end
+            if ( {st[SDL_SCANCODE_DOWN]} != 0) then
+                cameraY = _clamp(cameraY + 10, 0, maxCameraY);
+            end
+            if ( {st[SDL_SCANCODE_LEFT]} != 0) then
+                cameraX = _clamp(cameraX - 10, 0, maxCameraX);
+            end
+            if ( {st[SDL_SCANCODE_UP]} != 0) then
+                cameraY = _clamp(cameraY - 10, 0, maxCameraY);
+            end
         end
     with 
         var int drawOffset = BLOCK_SIZE/2;
         every SDL_REDRAW do
             _SDL_SetRenderDrawColor(&&sdl!.ren, 0xFF,0x00,0x00, 0xFF);
-            _SDL_RenderDrawLine(&&sdl!.ren, startX * BLOCK_SIZE, startY * BLOCK_SIZE, (startX+1) * BLOCK_SIZE, (startY+1) * BLOCK_SIZE);
-            _SDL_RenderDrawLine(&&sdl!.ren, startX * BLOCK_SIZE, (startY+1) * BLOCK_SIZE, (startX+1) * BLOCK_SIZE, startY * BLOCK_SIZE);
+            _SDL_RenderDrawLine(&&sdl!.ren, startX * BLOCK_SIZE - cameraX, 
+                                            startY * BLOCK_SIZE - cameraY,
+                                            (startX+1) * BLOCK_SIZE - cameraX, 
+                                            (startY+1) * BLOCK_SIZE - cameraY);
+
+            _SDL_RenderDrawLine(&&sdl!.ren, startX * BLOCK_SIZE - cameraX,
+                                            (startY+1) * BLOCK_SIZE - cameraY, 
+                                            (startX+1) * BLOCK_SIZE - cameraX, 
+                                            startY * BLOCK_SIZE - cameraY);
             if ($pf.path > 0) then
                 var usize ui;
                 var PathNode currnode;
@@ -78,8 +127,10 @@ watching sdl do
                     currnode = nextnode;
                     nextnode = pf.path[ui];
                     _SDL_RenderDrawLine(&&sdl!.ren, 
-                                        drawOffset + currnode.x * BLOCK_SIZE, drawOffset + currnode.y * BLOCK_SIZE,
-                                        drawOffset + nextnode.x * BLOCK_SIZE, drawOffset + nextnode.y * BLOCK_SIZE);
+                                        drawOffset + currnode.x * BLOCK_SIZE - cameraX, 
+                                        drawOffset + currnode.y * BLOCK_SIZE - cameraY,
+                                        drawOffset + nextnode.x * BLOCK_SIZE - cameraX, 
+                                        drawOffset + nextnode.y * BLOCK_SIZE - cameraY);
                 end
             end
         end

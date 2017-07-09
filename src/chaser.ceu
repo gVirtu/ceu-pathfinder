@@ -1,0 +1,45 @@
+#define CHASER_SIZE 24
+
+code/await Chaser (var int x, var int y) -> (var SDL_Rect collision) -> void do
+    var int pathstep = 1;
+    var int sx = x;
+    var int sy = y;
+
+    collision = val SDL_Rect(0, 0, 0, 0);
+    
+    par/or do
+        var int dt;
+        every dt in SDL_DT do
+            if (pathstep >= $outer.pf.path) then
+                pathstep = 1; x = sx; y = sy;
+            else
+                var int target_x = outer.pf.path[pathstep].x; 
+                var int target_y = outer.pf.path[pathstep].y; 
+
+                var int v = 300 * dt/1000;
+                var int dx = ((BLOCK_SIZE>>1) + target_x * BLOCK_SIZE) - x;
+                var int dy = ((BLOCK_SIZE>>1) + target_y * BLOCK_SIZE) - y;
+
+                if (_abs(dx) >= v) then 
+                    x = x + _sign(dx)*v;
+                else 
+                    if (_abs(dy) >= v) then 
+                        y = y + _sign(dy)*v;
+                    else
+                        pathstep = pathstep + 1; 
+                    end
+                end
+            end
+
+            collision = val SDL_Rect(x - CHASER_SIZE/2, y - CHASER_SIZE/2, CHASER_SIZE, CHASER_SIZE);
+        end
+    with
+        every SDL_REDRAW do
+            var SDL_Rect draw_rect = collision;
+            draw_rect.x = draw_rect.x - outer.cameraX;
+            draw_rect.y = draw_rect.y - outer.cameraY;
+            _SDL_SetRenderDrawColor(&&outer.sdl!.ren, 0xDD,0x00,0xDD,0xFF);
+            _SDL_RenderFillRect(&&outer.sdl!.ren, (&&draw_rect as _SDL_Rect&&));
+        end
+    end
+end
