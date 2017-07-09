@@ -1,7 +1,7 @@
 # ceu-pathfinder
 
 A basic Céu+SDL implementation of grid-based pathfinding.
-Utilizes [BigZaphod's AStar library](https://github.com/BigZaphod/AStar).
+Utilizes [BigZaphod's AStar library](https://github.com/BigZaphod/AStar). (Copyright (c) 2012, Sean Heber. All rights reserved.)
 
 ## Dependencies
 
