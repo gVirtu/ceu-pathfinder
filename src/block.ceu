@@ -1,0 +1,18 @@
+#define BLOCK_SIZE 32
+
+code/await Block (var int x, var int y) -> (var SDL_Rect collision) -> void do
+    collision = val SDL_Rect(x,y,BLOCK_SIZE,BLOCK_SIZE);
+    
+    par/or do
+        var int dt;
+        every dt in SDL_DT do
+            var int v = dt/1000;
+        end
+    with
+        every SDL_REDRAW do
+            var SDL_Rect block_rect;
+            _SDL_SetRenderDrawColor(&&outer.sdl!.ren, 0x00,0x00,0x00,0xFF);
+            _SDL_RenderFillRect(&&outer.sdl!.ren, (&&collision as _SDL_Rect&&));
+        end
+    end
+end
