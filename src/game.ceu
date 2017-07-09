@@ -33,7 +33,7 @@ var&? SDL_Init sdl =
     spawn SDL_Init("AStar Tests", WINDOW_W, WINDOW_H, SDL_Color(0xFF,0xFF,0xFF,0xFF));
 
 watching sdl do
-    _loadWorld("./res/level00.map");
+    _loadWorld("./res/level01.map");
 
     native/const
         _world, _world_w, _world_h;

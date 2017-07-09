@@ -5,6 +5,7 @@ game:
 	    ceu --pre --pre-args="-I$(CEU_DIR)/include -I$(CEU_SDL_DIR)/include" \
 	              --pre-input=src/game.ceu                                   \
 	        --ceu --ceu-err-unused=pass --ceu-err-uninitialized=pass         \
+		      --ceu-features-thread=true                                 \
 	        --env --env-types=$(CEU_DIR)/env/types.h                         \
 	              --env-threads=$(CEU_DIR)/env/threads.h                     \
 	              --env-main=$(CEU_DIR)/env/main.c                           \
